@@ -5,10 +5,13 @@ import android.os.Parcelable;
 
 import com.google.gson.annotations.SerializedName;
 
+import io.realm.RealmObject;
 import lombok.Data;
 
 @Data
-public class Camera implements Parcelable {
+public class Camera
+        extends RealmObject
+        implements Parcelable {
 
     long id;
     @SerializedName("rover_id")
@@ -16,6 +19,9 @@ public class Camera implements Parcelable {
     @SerializedName("full_name")
     String fullName;
     String name;
+
+    public Camera() {
+    }
 
     public Camera(long id, long roverId, String fullName, String name) {
         this.id = id;

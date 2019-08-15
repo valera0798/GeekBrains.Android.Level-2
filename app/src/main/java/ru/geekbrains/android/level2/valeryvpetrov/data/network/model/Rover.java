@@ -5,18 +5,24 @@ import android.os.Parcelable;
 
 import com.google.gson.annotations.SerializedName;
 
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
+import io.realm.RealmObject;
+import io.realm.annotations.Ignore;
+import io.realm.annotations.PrimaryKey;
 import lombok.Builder;
 import lombok.Data;
 
 @Data
 @Builder
-public class Rover implements Parcelable {
+public class Rover
+        extends RealmObject
+        implements Parcelable {
 
+    @Ignore
     List<Camera> cameras;
+    @PrimaryKey
     long id;
     @SerializedName("landing_date")
     Date landingDate;
@@ -30,6 +36,9 @@ public class Rover implements Parcelable {
     String status;
     @SerializedName("total_photos")
     long totalPhotos;
+
+    public Rover() {
+    }
 
     public Rover(List<Camera> cameras, long id, Date landingDate, Date launchDate, Date maxDate, long maxSol, String name, String status, long totalPhotos) {
         this.cameras = cameras;

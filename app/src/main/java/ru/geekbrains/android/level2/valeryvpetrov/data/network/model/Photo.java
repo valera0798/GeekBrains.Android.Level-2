@@ -4,10 +4,12 @@ import com.google.gson.annotations.SerializedName;
 
 import java.util.Date;
 
-import lombok.Value;
+import io.realm.RealmObject;
+import lombok.Data;
 
-@Value
-public class Photo {
+@Data
+public class Photo
+        extends RealmObject {
 
     Camera camera;
     @SerializedName("earth_date")
@@ -17,5 +19,8 @@ public class Photo {
     String imgSrc;
     Rover rover;
     long sol;
+
+    public Photo() {
+    }
 
 }

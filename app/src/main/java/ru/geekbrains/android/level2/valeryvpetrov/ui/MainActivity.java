@@ -32,6 +32,8 @@ import java.util.List;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
+import io.realm.Realm;
+import io.realm.RealmList;
 import pl.droidsonroids.gif.GifImageView;
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -65,6 +67,7 @@ public class MainActivity
 
     private NASAMarsRoverPhotoAPI nasaMarsRoverPhotoAPI;
     private Callback<RoverPhotoListResponse> roverPhotoListResponseCallback;
+    private Callback<RoverPhotoListResponse> roverPhotoListResponseCacheCallback;
 
     // application bar functionality
     @BindView(R.id.toolbar)
@@ -141,6 +144,38 @@ public class MainActivity
                 });
             }
         };
+        roverPhotoListResponseCacheCallback = new Callback<RoverPhotoListResponse>() {
+            @WorkerThread
+            @Override
+            public void onResponse(@NonNull Call<RoverPhotoListResponse> call,
+                                   @NonNull Response<RoverPhotoListResponse> response) {
+                if (response.body() != null) {
+                    photoList = response.body().getPhotos();
+                    if (photoList != null) {
+                        Realm realm = Realm.getDefaultInstance();
+                        realm.executeTransaction(_realm -> {
+                            RealmList<Photo> photoRealmList = new RealmList<>();
+                            photoRealmList.addAll(photoList);
+                            _realm.insertOrUpdate(photoRealmList);
+                        });
+                        handlerUI.post(() -> {
+                            viewProgressPhotos.setVisibility(View.GONE);
+                            adapterPhotos.updatePhotoList(photoList);
+                        });
+                    }
+                }
+            }
+
+            @WorkerThread
+            @Override
+            public void onFailure(@NonNull Call<RoverPhotoListResponse> call,
+                                  @NonNull Throwable t) {
+                handlerUI.post(() -> {
+                    viewProgressPhotos.setVisibility(View.GONE);
+                    showToast(getString(R.string.error_network_failure));
+                });
+            }
+        };
 
         initUI();
         configureActionBar();
@@ -197,6 +232,11 @@ public class MainActivity
             updateRoverPreferences(newLaunchRover);
             searchViewPhotos.setQuery(String.valueOf(newLaunchRover.getMaxSol()), true);
         }
+
+        MenuItem itemShowLatestPhotos = menu.findItem(R.id.action_show_latest_photos);
+        if (roverPreferences == null) itemShowLatestPhotos.setVisible(false);
+        else itemShowLatestPhotos.setVisible(true);
+
         return super.onCreateOptionsMenu(menu);
     }
 
@@ -206,7 +246,39 @@ public class MainActivity
             showRoverSettingsDialog();
             return true;
         }
+        if (item.getItemId() == R.id.action_show_latest_photos) {
+            showRoverLatestPhotos();
+            return true;
+        }
         return super.onOptionsItemSelected(item);
+    }
+
+    private void showRoverLatestPhotos() {
+        if (roverPreferences != null) {
+            searchViewPhotos.setQuery(String.valueOf(roverPreferences.getMaxSol()), false);
+            searchViewPhotos.clearFocus();  // hide keyboard after submission
+            viewProgressPhotos.setVisibility(View.VISIBLE);
+            // try to get data form db
+            Realm realm = Realm.getDefaultInstance();
+            realm.executeTransaction(_realm -> {
+                List<Photo> photoList =
+                        _realm.copyFromRealm(_realm
+                                .where(Photo.class)
+                                .equalTo("rover.id", roverPreferences.getId())
+                                .findAll());
+                if (photoList != null && photoList.size() > 0) {
+                    if (adapterPhotos != null) {
+                        viewProgressPhotos.setVisibility(View.GONE);
+                        adapterPhotos.updatePhotoList(photoList);
+                    }
+                } else {
+                    // if there is no cached data call API
+                    nasaMarsRoverPhotoAPI
+                            .getPhotoList(roverPreferences.getName(), (int) roverPreferences.getMaxSol(), 1)
+                            .enqueue(roverPhotoListResponseCacheCallback);
+                }
+            });
+        }
     }
 
     private void showRoverSettingsDialog() {
@@ -228,9 +300,13 @@ public class MainActivity
                 int sol = Integer.valueOf(query.trim());
                 if (sol >= 0 && sol <= roverPreferences.getMaxSol()) {   // sol relates to rover settings
                     viewProgressPhotos.setVisibility(View.VISIBLE);
-                    nasaMarsRoverPhotoAPI
-                            .getPhotoList(roverPreferences.getName(), sol, 1)
-                            .enqueue(roverPhotoListResponseCallback);
+                    if (sol == roverPreferences.getMaxSol()) {
+                        showRoverLatestPhotos();
+                    } else {
+                        nasaMarsRoverPhotoAPI
+                                .getPhotoList(roverPreferences.getName(), sol, 1)
+                                .enqueue(roverPhotoListResponseCallback);
+                    }
                     return true;
                 } else {
                     showToast(getString(R.string.error_invalid_sol));
@@ -262,6 +338,7 @@ public class MainActivity
         savePreferences(rover);
         showRoverInfo(rover);
         resetPhotoSearchResult();
+        invalidateOptionsMenu();
     }
 
     @Nullable

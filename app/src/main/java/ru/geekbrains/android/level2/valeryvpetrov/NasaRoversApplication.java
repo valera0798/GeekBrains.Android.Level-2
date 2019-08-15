@@ -2,6 +2,8 @@ package ru.geekbrains.android.level2.valeryvpetrov;
 
 import android.app.Application;
 
+import io.realm.Realm;
+
 public class NasaRoversApplication extends Application {
 
     public static final String SHARED_PREFERENCES_NAME = "NasaRoversSP";
@@ -18,4 +20,9 @@ public class NasaRoversApplication extends Application {
 
     public static final String SHARED_PREFERENCES_KEY_FLAG_IS_WAITING_CONNECTIVITY_CHANGE = "isWaitingConnectivityChange";
 
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        Realm.init(this);
+    }
 }
