@@ -153,7 +153,7 @@ public class RoverSettingsDialogFragment
     private void inflateRoverNames(@NonNull List<Rover> roverList) {
         RadioButton radioButtonRoverNameChecked = null;
         for (Rover rover : roverList) {
-            RadioButton radioButtonRoverName = new RadioButton(getContext());
+            RadioButton radioButtonRoverName = new RadioButton(getActivity());
             radioButtonRoverName.setText(rover.getName());
             if (chosenRoverName != null && chosenRoverName.equals(rover.getName())) {
                 radioButtonRoverNameChecked = radioButtonRoverName;
